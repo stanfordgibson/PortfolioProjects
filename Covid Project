@@ -1,0 +1,121 @@
+
+SELECT * FROM covidvaccinations
+
+SELECT * FROM coviddeaths
+
+
+SELECT location, date, total_cases, new_cases, total_deaths, population
+FROM coviddeaths
+ORDER BY 1, 2;
+
+-- Total cases vs Total deaths (limited to South Africa)
+-- % of the South African population that died from Covid
+
+SELECT location, date, total_cases, total_deaths, 
+	(total_deaths / total_cases) * 100 AS perc_deaths
+FROM coviddeaths
+WHERE location = 'South Africa'
+ORDER BY 1, 2;
+
+-- Total cases vs Population (limited to South Africa)
+-- % of the South African population that contracted Covid
+SELECT location, date, population, total_cases,  
+	(total_cases / population) * 100 AS perc_cases
+FROM coviddeaths
+WHERE location = 'South Africa'
+ORDER BY 1, 2;
+
+-- Which country currently has the highest infection rate compared to its population size?
+
+SELECT location, date, population, total_cases,  
+	(total_cases / population) * 100 AS perc_cases
+FROM coviddeaths
+WHERE date = (SELECT MAX(date) FROM coviddeaths)
+	AND (total_cases IS NOT NULL AND continent IS NOT NULL)
+ORDER BY perc_cases DESC
+LIMIT 1;
+
+-- Which country currently has the highest death count per population size?
+
+SELECT location, date, population, total_deaths,  
+	(total_deaths / population) * 100 AS perc_deaths
+FROM coviddeaths
+WHERE date = (SELECT MAX(date) FROM coviddeaths)
+	AND (total_deaths IS NOT NULL AND continent IS NOT NULL)
+ORDER BY perc_deaths DESC
+LIMIT 1;
+
+-- Which country has the highest death count (Rank them all)?
+
+SELECT continent, location, MAX(total_deaths) total_death_count_location,
+	RANK() OVER(ORDER BY MAX(total_deaths) DESC)
+FROM coviddeaths
+WHERE continent IS NOT NULL AND total_deaths IS NOT NULL
+GROUP BY continent, location
+
+-- Where does South Africa rank globally?
+SELECT * FROM(
+	SELECT continent, location, MAX(total_deaths) total_death_count_location,
+		RANK() OVER(ORDER BY MAX(total_deaths) DESC)
+	FROM coviddeaths
+	WHERE continent IS NOT NULL AND total_deaths IS NOT NULL
+	GROUP BY continent, location
+	) a
+WHERE location = 'South Africa';
+
+-- Where does South Africa rank on the continent (Rank all African countries)?
+SELECT continent, location, MAX(total_deaths) total_death_count_location,
+	RANK() OVER(ORDER BY MAX(total_deaths) DESC)
+FROM coviddeaths
+WHERE continent = 'Africa' AND total_deaths IS NOT NULL
+GROUP BY continent, location;
+
+-- Which continent has the highest death count (Rank all regions)?
+
+SELECT continent, SUM(total_death_count_location) total_death_count,
+	RANK() OVER(ORDER BY SUM(total_death_count_location) DESC)
+FROM (
+	SELECT continent, location, MAX(total_deaths) total_death_count_location
+	FROM coviddeaths
+	WHERE continent IS NOT NULL AND total_deaths IS NOT NULL
+	GROUP BY continent, location
+	) a
+GROUP BY continent;
+
+-- Global new deaths to new cases as a %
+SELECT date, SUM(new_cases) total_new_cases, 
+	SUM(new_deaths) total_new_deaths, SUM(new_deaths)/SUM(new_cases) * 100 perc_new_death_new_cases
+FROM coviddeaths
+WHERE continent IS NOT NULL --AND total_deaths IS NOT NULL
+GROUP BY date
+ORDER BY date
+
+-- Total vaccinations VS total population per country (CTE use)
+WITH popvsvac (continent, location, date, population, new_vaccinations,
+			  continent_rolling_count, country_rolling_count, global_rolling_count)
+AS
+(
+SELECT cd.continent, cd.location, cd.date, cd.population, cv.new_vaccinations,
+SUM(new_vaccinations) OVER(PARTITION BY cd.continent ORDER BY cd.continent, cd.date 
+						   RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) continent_rolling_count,
+SUM(cv.new_vaccinations) OVER(PARTITION BY cd.location ORDER BY cd.location, cd.date 
+						   RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) country_rolling_count,
+SUM(new_vaccinations) OVER(ORDER BY cd.date 
+						   RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) global_rolling_count						   
+FROM covidvaccinations cv
+JOIN coviddeaths cd
+ON cv.location = cd.location AND cv.date = cd.date
+WHERE cd.continent IS NOT NULL
+)
+SELECT *,  country_rolling_count / population * 100 as perc_people_vaccinated
+FROM popvsvac
+ORDER BY location, date;
+
+-- https://www.youtube.com/watch?v=qfyynHBFOsM
+-- Time: 53:12
+
+-- Things to review
+-- Which months / periods per continent / country had highest and lowest infections / deaths
+-- Seasons of the years
+-- Public and religious holidays
+
