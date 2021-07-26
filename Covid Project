@@ -111,11 +111,4 @@ SELECT *,  country_rolling_count / population * 100 as perc_people_vaccinated
 FROM popvsvac
 ORDER BY location, date;
 
--- https://www.youtube.com/watch?v=qfyynHBFOsM
--- Time: 53:12
-
--- Things to review
--- Which months / periods per continent / country had highest and lowest infections / deaths
--- Seasons of the years
--- Public and religious holidays
 
