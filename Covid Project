@@ -1,10 +1,4 @@
-
-SELECT * FROM covidvaccinations
-SELECT * FROM coviddeaths
-WHERE date = '2020-05-25'
-AND continent = 'Europe'
-
-
+Table of content 
 
 -- A. Table creation and data imports
 -- 1. Deaths and Infections
